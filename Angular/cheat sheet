@@ -1,0 +1,212 @@
+
+help:
+    ng help
+    ng generate --help
+
+create a new angular application:
+    ng new
+
+run an angular application:
+    ng serve -o [to open after build]
+
+run test (using chrome only ?)
+    ng test
+    ng e2e
+
+build application:
+    ng build
+    ng build --prod => less files to deploy in production
+
+generate
+    generate a module:      ng g m products/product
+    generate a pipe         ng g p products/convert-to-space
+    generate a guard:       ng g g products/product-detail
+    generate a component:   ng g c products/product-detail --flat
+    generate a service      ng g s products/product
+
+npm start => is running start inside package.json
+```
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve -o",
+    "build": "ng build",
+    "test": "ng test",
+    "lint": "ng lint",
+    "e2e": "ng e2e"
+  },
+```
+
+
+
+validations using angular
+    <input .... #classTest>
+        classTest.className
+            => boostraps classes (ie. form-control)
+            [Visited]       => ng-touched / ng-untouched => if this field was visited even if not modified
+            [Value Changed] => ng-pristine / ng-dirty => modified or not (any change will modify this class to ng-dirty)
+            [Validity]      => ng-valid / ng-invalid => if the field is valid following html5 valid attributes (minlength, maxlength, pattern, required, for  numbers: min, max)
+        => these variables can be use for example to style a field.
+    - Classes and associated NgModel Properties (Properties exist on ngModel)
+        => ng-touched / ng-untouched => touched / untouched
+        => ng-pristine / ng-dirty => pristine / dirty
+        => ng-valid / ng-invalid => valid / invalid
+
+in css you can do: 
+.ng-invalid.ng-touched:not(form) {
+  border: 1px solid red;
+}
+=> check field ngModel attributes.
+
+
+=> Third part form controls ensures that we will have same ui and experience among all browsers.
+    ngx-boostrap
+
+
+Template Form vs Reactive Form:
+Template Form:
+    - Easy to use
+    - Two way data binding => minimal component code
+    - Automatically tracks form and input element state (touched/untouched, pristine/dirty, valid/invalid)
+Angular Form:
+    - More flexible => handle more complex scenarios
+    - Immutable data models
+    - Easier to perform an action on a value change
+    - Reactive transformations => DebounceTime, DistinctUntilChanges,...
+    - Easily add input elements dynamically
+    - easier unit testing
+
+
+
+
+In template driven form we write:
+  - In the Template:
+    - Form element (Form group)
+    - Input Element  (Form control)
+    - Data binding
+    - Validation Rules
+    - Validation error messages
+    => form model automatically generated (contains the state of the form group with the values of the inputs)
+  - In Component Class
+    - Properties for data binding
+    - Methods for form operations (submit, get, ...)
+
+In the reactive form we write:
+  - In Component Class
+    - define the Form model
+    - Define validation rules in the class
+    - Validation error classes
+    - Properties for managing data (data model)
+    - Methods for form operations
+  - Template
+    - Form element
+    - input elements
+    - Bind these elements to form model in component class.
+
+
+
+
+- Directive in Template-Driven:
+    - import FormsModule for directives
+        - ngForm
+        - ngModel
+        - ngModelGroup
+    => all is done automatically
+    <form (ngSubmit)="save()" #signUpForm="ngForm">                                     => create form group (form model automically and ability to access it)
+        <input id="name" name="name" type="text"                                        => name is used to create the form control inside the the form model group
+                [(ngModel)]="customer.firstName" #nameModel="ngModel"/>                 => create Form control automically (and model form automatically and ability to access it)
+        <button type="submit" [disabled]="!signupForm.valid">
+            save
+        </button>
+    </form>
+
+- Directives in Reactive-Driven
+    - import ReactiveFormsModule
+        - formGroup
+        - formControl
+        - formGroupName
+        - formContorlName
+        - formArrayName
+    => we need to create the form model in the component class.
+
+
+
+Reactive form checklist:
+    - create an attribute for root formGroup
+    - create the formGroup instance
+    - Pass in each formControl (in constructor or using the FormBuilder) formBuilder.group({firstName: '', lastName: '', email: ''})
+    - Add ReactiveFormsModule in app module.
+    - in the template (html) use [formGroup]="customerform" => bind a property to the attribute
+        and on each input  > formControlName="firstName"
+
+    => inputs can be grouped in a form group by wrapping them in <div formGroupName="compositre"?
+        and then in the class 
+        this.formGroup.group({
+            name: 
+            lastName:
+            composite: this.formGroup.group({
+                email:
+                confirmEmail:
+            }, {validator: emailMatch})
+        })
+    => validators can be added dynamically
+        this.formGroup.get('phone).setValidators(...);
+        this.formGroup.get('phone').clearValidators()
+        this.formGroup.get('phone').updateValueAndVality(); => to trigger the validation
+    => custom validator
+        function myValidator(contorl: AbstractControl): {[key: string]: boolean} | null {
+            if (somethingIsWrong) {
+                return {'thisValidator': true}; => thisValidator is the name of the broken validator in the template
+            } else {
+                null;
+            }
+        }
+
+        this.formGroup.group({
+            firstName: ['', myValidator];
+        })
+    => onValueChanged => to watch value changes => can handle validations, propose items,...
+        this.customerForm.get('notification').valueChanges.subscribe(
+            value => this.validateNotification(value)
+        );
+
+    => Reactive Transformations:    [Watch and React]
+        - debounceTime: to delay validations until the user finished typing.                [import { debounceTime } from 'rxjs/operators';]
+                        Ignors events until a specific time has passed without another event
+            DebounceTime(1000) -> waits for 1000 milliseconds *of no event* before emitting another events.
+            this.formControl.valueChanges.pipe(debounceTime(1000)).subscribe(value => this.validateNotifications(value));
+        - ThrottleTransformation: emit a value then ignore subsequence values for a specific amount of time
+        - DistinctUntilChanges: Supressed duplicate consecutive items
+
+
+Dynamically duplicate input elements:
+    => if multiple elements duplicate formGroup instead of duplicating each formControl
+    => Steps:
+        1. define a form group encapsulating inputs to duplicate
+        2. create a method that creates this form group
+            - buildAddresses(): FormGroup {
+                    this.formGroup.group([...])
+              }
+            - add a div with formGroupName
+        3. Create a form array in the main formGroup
+            - addresses: this.formBuilder.array([buildAddresses])
+            - add a new a formArrayName div that encapsulates the formGroupName
+                with *ngFor="let address of addresses.controls; let i = index"
+            - modify the `id` and `for`
+                => id = "{{ 'addressTypeId' + i }}"
+                => attr.for = "{{ 'addressTypeId' + i }}"
+        4. add a button and call a method
+            => this.formGroup.get('addresses').push(buildAddresses);
+
+
+
+
+Pluralsight courses:
+    Unit testing in Angular
+    Angular Routing
+    Angular Component Communication
+    Angular Fundamentals
+
+www.getbootstrap.com => to be consistent among browsers
+http://putsreq.com => to build quick webservices.
+https://angular.io/resources  => to find UI components 
+https://valor-software.com/ngx-bootstrap/#/documentation#getting-started

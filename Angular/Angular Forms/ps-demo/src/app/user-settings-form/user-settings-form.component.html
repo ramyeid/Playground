@@ -1,0 +1,101 @@
+
+<div class="container">
+  <h2>User Settings</h2>
+  <form #form="ngForm" (ngSubmit)="onSubmit(form)">
+
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input class="form-control" id="name" name="name" [(ngModel)]="userSettings.name" minlength="3"
+             required #classTest #nameField="ngModel"
+             [class.field-error]="form.submitted && nameField.invalid"
+             (blur)="onBlur(nameField)">
+      <div *ngIf="form.submitted && (nameField.invalid || nameField.untouched)" class="alert alert-danger"> <!-- or [hidden]="!form.submitted || nameField.valid"-->
+        Enter a valid name
+      </div>
+    </div>
+
+    <!-- <button type="button" name="singleModel" class="btn btn-primary" [(ngModel)]="singleModel" btnCheckbox btnCheckboxTrue='On' btnCheckboxFalse='Off'> -->
+      <!-- {{singleModel}} -->
+    <!-- </button> -->
+
+    <!-- <h5>{{ classTest.className }} </h5>
+    <h3>dirty: {{ nameField.dirty }}</h3>
+    <h3>pristine: {{ nameField.pristine }}</h3>
+    <h3>touched {{ nameField.touched }}</h3>
+    <h3>untouched {{ nameField.touched }}</h3>
+    <h3>valid: {{ nameField.valid }}</h3>
+    <h3>invalid: {{ nameField.invalid }}</h3> -->
+
+    <div class="form-check form-group">
+      <input class="form-check-input" type="checkbox" id="emailOffers" name="emailOffers" [(ngModel)]="userSettings.emailOffers">
+      <label class="form-check-label" for="emailOffers">Email Special Offers</label>
+    </div>
+
+    <p>User Interface Style</p>
+    <div class="form-group">
+      <div class="btn-group">
+        <label class="btn btn-primary" [(ngModel)]="userSettings.interfaceStyle" name="interfaceStyle"
+              btnRadio="Light"  tabindex="0" role="button">Light</label>
+        <label class="btn btn-primary" [(ngModel)]="userSettings.interfaceStyle" name="interfaceStyle"
+                btnRadio="Medium"  tabindex="0" role="button">Medium</label>
+        <label class="btn btn-primary" [(ngModel)]="userSettings.interfaceStyle" name="interfaceStyle"
+                btnRadio="Dark"  tabindex="0" role="button">Dark</label>
+      </div>
+    </div>
+    <!-- <div class="form-group">
+      <div class="form-check">
+        <input class="form-check-input" type="radio"  name="interfaceStyle" id="lightInterface" value="light" [(ngModel)]="userSettings.interfaceStyle">
+        <label class="form-check-label" for="lightInterface">Light</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio"  name="interfaceStyle" id="mediumInterface" value="medium" [(ngModel)]="userSettings.interfaceStyle">
+        <label class="form-check-label" for="mediumInterface">Medium</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio"  name="interfaceStyle" id="darkInterface" value="dark" [(ngModel)]="userSettings.interfaceStyle">
+        <label class="form-check-label" for="darkInterface">Dark</label>
+      </div>
+    </div> -->
+
+    <div class="form-group">
+      <label for="subscriptionType">Subscription Type</label>
+      <select class="form-control" name="subscriptionType" id="subscriptionType" [(ngModel)]="userSettings.subscriptionType">
+        <option *ngFor="let type of subscriptionTypes | async">{{ type }}</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea class="form-control" id="notes" name="notes" rows="3" [(ngModel)]="userSettings.notes"></textarea>
+    </div>
+
+    <!-- <div class="form-group">
+      <label for="password">Password</label>
+      <input class="form-control" id="password" name="password" type="password"/>
+    </div> -->
+
+    <div *ngIf="postError" class="alert alert-danger"> <!-- or use [hidden]="!postError" -->
+      {{ postErrorMessage }}
+    </div>
+
+
+    <div class="row">
+      <div class="col-xs-12 col-12 col-md-4 form-group">
+        <input type="text"
+               placeholder="Datepicker"
+               class="form-control"
+               bsDatepicker>
+      </div>
+      <div class="col-xs-12 col-12 col-md-4 form-group">
+        <input type="text"
+               placeholder="Daterangepicker"
+               class="form-control"
+               bsDaterangepicker>
+      </div>
+    </div>
+
+    <button class ="btn btn-primary">Ok</button>
+  </form>
+</div>
+
+{{ userSettings | json }}
