@@ -24,6 +24,9 @@ generate
     generate a component:   ng g c products/product-detail --flat
     generate a service      ng g s products/product
 
+code coverage:
+    ng test --code-coverage
+
 npm start => is running start inside package.json
 ```
   "scripts": {
@@ -32,10 +35,15 @@ npm start => is running start inside package.json
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
-    "e2e": "ng e2e"
+    "e2e": "ng e2e",
+    "code-coverage": "ng test --code-coverage"
   },
 ```
-
+npm start => ng serve
+     => does not pre-compile angular (it transpiles it in the browser => degardes performance)
+npm start --  --prod => ng serve --prod
+     => pre-compiles the angular project => creates dist/ 
+        and so the code is pre-compiled once and all browsers will download only transpiled code
 
 
 validations using angular
@@ -198,13 +206,1197 @@ Dynamically duplicate input elements:
             => this.formGroup.get('addresses').push(buildAddresses);
 
 
+Testing in Angular
+    e2e => live running application
+        => tests that exercise live application (run and manipulate browser)
+    unit => A single "unit" of code
+            => usually a single class
+    integration and functional testing => More than a unit, less than the complete applications
+
+    in angular integration tests test component + template
+    in angular unit tests tests the component
+    
+    2 types of testing in angular
+        - Isolated          => test the component service alone 
+        - Integration tests => create a module and inject the classes we want to test 
+                            => usually used to test the component with its template
+                                    - Shallow => test a single component
+                                    - Deep    => many components (child and parent component for example)
+
+    Angular       Java
+    Dummy      =>    any()
+    Stub       =>    
+    spies      =>    spy
+    True mocks =>    
+
+    A test should tell a story even if DRY is broken
+        => repeat code if it will make the test readable
+        => if setup is critical we will put it in each test instead of in the before.
+    => given when then ==== AAA, Arrange, Act and Assert
+
+    for tests CLI uses:
+        Karma => test running dependency
+        Jasma => to create mocks, expectation
+
+    other possible tools:
+            - Jest
+            - Mocha/Chai
+            - Sinon
+            - TestDouble
+
+    => spec.ts => to let Karma know that this is a test files
+        spec is short for specification
+
+    Jasmin:
+        - describe => function that lets us group tests
+        - beforeEach => takes a call back that is called before each test
+        - it => is the equivalent of @Test
+                => takes a string name of the stirng
+                => callback is the test.
+            => name of the test is the string in *describe* appended to the string it *it*
+        - expect => assert
+            => expect(a).toBe(true);
+                    toBeEqualTo ... => matchers
+        
+        - toMock:
+            - Create mock:          mockHeroService = jasmine.createSpyObj(['getHeroes', 'addHero', 'deleteHero']);
+            - Modify behavior:      mockHeroService.deleteHero.and.returnValue(of(true)); => to mock
+            - verify it was called: expect(mockHeroService.deleteHero).toHaveBeenCalledWith(heroes[2]);
+
+
+    Shallow Integration Tests:
+        TestBed => Utility to create a module for testing.
+        ComponentFixture => wrapper on the component for testing
+        when testing Components and template we usually use the routerLink directive, this needs to imported by our TestBed (RouterModule)
+            But importing RouterModule is not that easy in testing 
+            instead we use schemas: [NO_ERRORS_SCHEMA]
+                => hides all exceptions in the template!
+                => side effect is that if there's something wrong in our template for example <za instead of <a => the test will still be green.
+                => it won't warn us about mispelling or misusing a directive.
+                => use it when absolutely necessary.
+         
+
+
+
+
+Best Practices:
+    - LIFT
+        - Locate code quickly
+        - Identify code at a glance
+        - Flattest structure possible 
+        - Try to be DRY
+
+    => static constant are named camel not `UPPER_CASE` (upper case and underscore like java)
+
+    =>     this.currentUser = Object.assign(
+            {},
+            this.currentUser, 
+            { classes: this.currentUser.classes.concat(classId)}
+        );
+        => create a new object ({})
+        => that takes all the values from (this.currentUser)
+        => and modifies the classes attributes (this.currentUser.classes.concat(classId))
+
+    => everything is passed by reference
+        so if we want to copy the object inside the function
+        save(user) {
+            this.user = Object.assign({}, user);
+        }
+
+
+    => Module Organization
+        - App Module
+        - Core Module
+            - Shared singleton services 
+                => Angular injector creates a new instance of a service for 
+                    every lazily loaded module that provide this service
+                => and module should be loaded lazily
+            - App-level components
+                => example: navigation bar
+        - Shared Module
+            - Shared component, directive, pipes
+                => example: load-spinner
+        - Feature Modules
+            - group together feature-level services, components, directives and pipes
+
+    => lazy load some features module
+        => download certain modules when clicked on
+        1. create a route.ts in the app module that contains:
+            export const appRouters: Routes = [
+                { path: '...', component: ... },
+                { path: 'users', loadChildren: 'app/users/users.module#UsersModule'} 
+                    => when /users url is called load the UsersModule that is under app/users/users,module#UserModule
+            ]
+        2. in UsersModule {
+            in the import section :
+                RouterModule.forChild([
+                    { path: 'register', component: RegisterComponent, },
+                    { path: 'sign-in', component: SignInComponent },
+                ])
+                => this will be users/register & users/sign-in
+        }
+
+    => check the bundle sizes that are under dist/ when building for production
+        => the biggest bundle is usually vendor.bundle.ls which contains 3rd party library
+        => to help monitor the bundle
+            => npm install -g source-map-explorer
+            => ng build --prod --sourcemaps=true 
+                => prod build with sourceMaps
+                => we can notice in the dist new '.map' are created for each bundle
+            => cd dist
+            => source-map-explorer vendor.bundle.js
+                => opens browser with details of what is imported and how big it is.
+            => always import 3rd party library from their folder and not parent folder
+                => import { Observable, Subject } from 'rxjs/Rx'    => will download everything
+                => import { Observable } from 'rxjs/Observable'
+                   import { Subject } from 'rxjs/Subject'           => will download only these 2 folders.
+
+    => Pure and Impure Pipes
+            @Pipe({
+                name: 'orderBy'
+            })
+        Pure:
+            - By default they are pure.
+            - they don't work with data mutation
+            - they only get re-evaluated if the object reference (on which the pipe is applied to) changes 
+            => this is why we should always favor immutability that way any change will change the object refernce hence the pure pipes will work.
+        @Pipe({
+            name: 'orderBy'
+            pure: false
+        })
+        Impure:
+            - work with data mutation
+            - Impure pipes will get called a lot! 
+            - degardes performance
+
+RxJs => streams, Observable
+    => Reactive Extensions for Javascrript (available for Java, Python, ...)
+    => Library for composing asynchronous and event-based programs by using observable sequences
+        => manage data as it flows through time
+            - Collect and create streams
+            - Pipe through a set of operations
+                - Transform / filter / process
+            - Combine 
+            - Cache
+    => RxJs vs Promise
+        => Promise potential value in the value
+        => Not canceable
+    => Why RxJs
+        - One technique to rule them all (can handle all kind of data & dataSource)
+        - Compositional
+        - Watchful / can produce mutltiple values
+        - Lazy => does not start until subscription
+        - built in error handling
+        - Cancellable
+    => What is reactive Development / Programming
+        => a delcarative programming paradigm concenrned with data streams and the propagation of change
+        => it's a functional reactive programming
+            => specify the dynamic behavior of a value at the time of declaration
+    => RxJs
+        - Subscribe => emit items
+        - pipe through a set of operators
+        - Observer
+            - next()
+            - error()
+            - complete
+        - Unsubscribe => stop the stream
+    => Observer, observs the stream and responds to its notification
+        - Next item, process it         => next()
+        - Error occured, handle it      => error()
+        - Complete, you're done         => complete()
+        => collection of callback that knows how to listen to values delivered by the Observable
+        => A java script object that defines the handlers for the notifications you received
+        => Interface with next, error, complete as Methods
+        => One of the Observers used in rxjs is a Subscriber
+    => Observable stream
+        => Observable sequences
+        => Observable
+        => stream
+    => Observables can be synchronous or asynchronous
+    => Stopping an Observable stream
+        - Call complete -> automatically unsubscribers and executes the complete
+        - use completing operators
+        - throw error => unsubscribes  (without calling complete)
+        - Unsubscribe from the Observable (without calling complete)
+    => creational:
+        - of('A1', 'A2')    => emits 2 items
+        - from(['A1', 'A2']) => emits 2 items
+        - of(['A1', 'A2']) => emits 1 item the array of items.  
+        - of(...['A1', 'A2']) => use the javasript spread operator to emit 2 items
+            => automatically unsubscribers
+        - fromEvent => create an observable from DomEvent
+            => fromEvent(this.par.nativeElement, 'click')
+        - interval(1000) => 
+    => Operators
+        - items are piped through a set of operators
+        > ` operators are Observables`
+        => manipilate items in an Observable stream
+        - of(2,4,6)
+            .pipe(
+                map(item => item * 2)
+                tap(item => console.log(item))
+                take(2)
+            ).subscribe(console.log)
+            => each item is processed by all operators than the next item is taken and processed
+        => https://rxjs.dev => to find all operators on Observable
+        => operators act as an input and output stream
+            - map (item => item * 2) => is an output stream and an input stream for the next operator
+        * map:
+            => transforms each emitted item
+        * tap:
+            => utility operator
+            => operation that does not modify the stream
+            => good for debugging
+        * take:
+            => take(2) 
+                => emit maximum 2 items and then unsubscribes
+            of(2, 4, 6)
+                .pipe(
+                    tap(item=>console.log(item))
+                    map(item=>item*2)
+                    take(2)
+                    map(item=>item-3)
+                    tap(item.console.log(item))
+                ).subscribe()
+                => the output is:
+                    `
+                    2
+                    1
+                    4
+                    5
+                    `
+                    => stops when 2 items are taken.
+    => Going reactive means:
+        - focus on async data streams instead of reading everything into an array. 
+        - leverage the many operator available
+        - React to actions with (next, error and complete)
+    => async pipe:
+        - subscribe to the Observable when component is initiallized
+        - Returns each emitted value
+        - when a new item is emitter, component is market to be checked for changes, modifying the UI as needed
+        - automatically unsubscribes when component is destroyed
+        => why to use async pipe ? instead of binding to the result
+            - no need to subscribe
+            - no need to unsubscribe
+            - improve change detection
+                => Angular uses change detection to track changes to application data structures
+                    so it knows when to update the UI with change data.
+                    Detection Strategies:
+                        - Default:
+                            => USes the default checkAlways strategy
+                            => Every component is checked when:
+                                - Any change is detected
+                        - OnPush:
+                            => Improves performance by minimizing change detection cycle
+                            => Component is only checked when:
+                                - @Input properties change
+                                - Event emits
+                                - A bound observable emits (bound means using async pipe)
+                            => if possible always use OnPush better for performance
+    => 2 ways of handling errors on Observable
+        => catchAndReplace && catchAndRethrow
+        - catchError(this.handleError)
+            => catches any error that occur on the Observable
+            => catchError is used for catching errors and:
+                - Rethrowing an error
+                - replaced the errored Observable to continue after an error occured.
+        * catchAndReplace:
+            - replace the errored observable with a new observable
+            -> Observable created from hard-coded or local data
+            -> observable that emits an empty value or empty array
+            - EMPTY from rxjs
+            => the Observable continues as if no error was caught
+            *** .pipe(
+                catchError(err => {
+                    console.log(err);
+                    return of(1, 2, 3);
+                })
+            )
+            -> catchError is an error handling Operator
+            -> takes an input stream and subscribe, and creates an ouput stream
+            * if an error occured:
+                - catches the error 
+                - Unsubscribe from the input stream
+                - Returns a replacement Observable
+                - Optionally rethrows the error.
+        * catchAndRethrow:
+            - ***.pipe(
+                catchError(err => {
+                    console.error(err);
+                    return throwError(err);
+                })
+            )
+            - throwError
+                - Creation function
+                => returns a replacement Observable
+                -> throwError creates an Observable that emits no items and immediatly emits an error notification
+                => === Observable<never>
+        ! EMPTY:
+            -> Creation function
+            => Creates an observable that emits no item and immediatly emits a complete notification
+    => Declarative approach:
+        we no longer subscribe to any stream
+        instead of having a Prodcedural approach:
+            Product Service:
+                getProducts(): Observable<Product[]> {
+                    return this.http.get<Product[]>(this.productsUrl)
+                    .pipe(catchError(this.handleError))
+                }
+            Product List Component:
+                this.products$ = this.productService.getProducts()
+                    .pipe(
+                        catchError(err => {
+                            this.errorMessage = err;
+                            return EMPTY;
+                        })
+                    )
+        we will have a declarative appraoch:
+            Product Service:
+                products$ = this.http.get<Product[]>(this.productsUrl) => directly not in a method but attribute.
+                                    .pipe(catchError(this.handleError))
+            Product List Component:
+                products$ = this.productsService.products$
+                                .pipe(catchError(err => {
+                                    this.errorMessage = err;
+                                    return EMPTY;
+                                }))
+        Why to use declarative approach ?
+            -> Better leverage the power of RxJS Observables and operators
+                instead of calling methods that return streams
+            -> Effectively combine streams
+            -> Easily share Observables
+            -> Readily react to user actions
+        Best practices for data retrieval:
+            1. build the shape of the data (interface or class)
+            2. Build a service to encapsulate the http code
+                => use a declarative approach
+                    - set a property to the Observable returned from http get
+                    - Use the type argument to map the reponse to the desired shape (this.http.get<Product[]>)
+                    - pipe through desired operators (at least catchError)
+            3. In a component, assign the service property to a local property and use async pipe
+                => products$ = this.productService.products$.pipe(
+                    catchError(this.error= error; return EMPTY;)
+                )
+                and in the component
+                *ngIf="products$ | async as products}
+                !!===> Use OnPush change Detections strategy since we will not longer be binding to list of items but we will use async pipe.
+
+    => Mapping Returned Data:
+        => Observable returns an array of objects, to perform operation on the item of the array, use the map of the array
+            this.http.get<Product[]>(this.productsUrl)
+                    .pipe(
+                    map(products => 
+                        products.map(product => Object.assign(product, {price: product.price * 10}))
+                            OR
+                        products.map(product => ({
+                        ...product,
+                        price: product.price * 1.5,
+                        searchKey: [product.productName]
+                        }) as Product)
+                    ),
+    => Combining streams:
+        -> Work with multiple data sources
+        Type of combination
+            * merge && concat
+                => combine to a single stream
+            * mergeAll
+                => flatten higher order observables
+            * forkJoin / combineLatest/...
+                => combine the values of 2 observables
+         combineLatest
+            => combination function
+                - takes a set of streams, subscribes to them
+                - Creates an output stream
+            => when an item is emitted from any stream:
+                - if all streams have emitted at least once
+                - Emits a value to the output stream
+            => completes when all the input streams complete
+            => Emitted value combines the latest emitted value from each input stream into an array
+            => creates an Observable whose values are defined:
+                - Using the latest values from each input Observable
+                    comineLatest([a$, b$, c$])
+                - static creation function (not pipeable)
+                => combine last emitted values from the stream as an array
+                    a$ => emits 1
+                    b$ => emits 2 
+                    c$ => emits 3
+                    result$ => emits [1,2,3]
+                => doesn't emit anything until all streams emit at least 1 value
+                => some emitted items may never be taken to the result
+         forkJoin
+            => Creates an Observable whose value is defined
+                Using the *last* (not latest) value from each input Observable
+            => static creational object not pipeable
+            => combination function
+                - takes in a set of streams, subscribes
+                - Creates an output stream
+            => when all input streams complete
+                - Emits a value to the output stream
+                    And completes
+            => Emitted value combines the last emitted value from each input stream
+                 into an array
+            => Use forkJoin
+                - to wait to process any results until all streams are complete
+                - Don't use when working with streams that don't complete 
+        withLatestFrom
+            => Creates an observable whose values are defined 
+                Using the latest values from each input Observable
+                -> but only when the source streasm emits
+                a$.pipe(withLatestFrom(b$, c$))
+            => pipeable operator
+            => emit only when a$ emit and combine the emitted value with the last emitted value from b$ and c$ 
+            => emit only when all streams emit at least 1 value ( some values might not be taken)
+            => combination operator
+                => takes in a set of streams, subscribe to each
+                => create an output stream
+            => When an item is emitted from source stream
+                - If all streams have emitted at least once
+                - Emits a value to the output stream
+            => Completes when the source stream completes
+            => Emitted value combines the latest emitted value from each input stream into an array
+            => Use withLatestFrom
+                - To react to  changes in only one stream
+                - To regulate the output of the other streams
+
+    => Reacting to Actions:
+        *filter
+            => filter is a transformation operation
+                - Takes in an input stream, subscribes
+                - Creates an output stream
+            => When a source item is emitted
+                - Item is evaluated as specified by the provided function
+                - IF the evaluation returns true, item is emitted to the output stream
+            => Filters to the items that match criteria specified in a provided function
+            => filter(item => item === 'Apple')
+            => similar to Array#filter
+
+        - Data stream vs Action stream
+            DataStream
+                => when we call http get the observable stream emits 1 item, the repsonse and complete.
+                    -> it's basically dead, complete, it will not re-execute.
+            ActionStream
+                => emits an item any time an action is done
+                => stream that is alive and keep emitting stream until stream is stopped.
+            
+            => Data Stream are created by FileCreator or http for example
+            => Action stream are built with:
+                - built-in stream like valueChanges
+                - fromEvent
+                => Subject/ BehaviorSubject.
+            *Subjet
+                => special type of Observable that is an Observer and Observable
+                => Observable is unicast, each Subscriber gets a copy of the Observable stream
+                => Subject is multicast, each subscriber share the same stream,
+                    - private categorySelectSubject =  new Subject<number>();
+                      categorySelectAction$ = categorySelectSubject.asObservable()
+                      categorySelectSubject.next()
+            * BehaviorSubject
+                => provides the default value and buffers the last emitted value to replay to any new subscriber
+                    => each subscriber start with the last value
+                => same as Subscriber but with initial value 
+                    - new BehaviorSubject<number>(0);
+
+            - Starting with initial value:
+                * startWith => operator
+                    - this.categorySelectedAction.pipe(startWith(0))
+                    => combination operator that combines the initial value with the stream
+                        -> take an observable stream as an input
+                        -> creates an output stream
+                    => when a source item is emitter
+                        -> if it's the first item, it emits the specified initial value(s), then continues with the stream
+                        -> it emits the item to the output stream
+                    => Initial value(s) must be same type as the source observable
+                *BehaviorSubject
+                    => start the stream with default value
+
+
+            If we want to filter on the items queries from the http after they are querried
+                we can't re-execute the stream, the stream completed
+                What we can do is use combineLatest
+            => combineLatest([data$, action$])
+                => that way it also combine the last data queries which contain actually all the data
+                    and the last action emitted.
+
+        * merge
+            => combines multiple streams by merging their emissions
+            => creation function, not pipeable
+            => Used for
+                -> combining sequencs of similar types to blend their emitted values
+            => combination creation function
+                - takes in a set of streams, subscribe to each
+                - creates an output stream 
+            => When an item is emitted from any stream
+                - item is emitted to the output stream
+            => complets when all input stream completes
+
+        * scan
+            => Accumulates items in a stream
+                => scan((acc, curr) => acc + curr)
+            => Used for:
+                - Totalling amounts
+                -> accumulator
+                -> accumulate item to an area
+            => of(2, 5, 9)
+                .pipe(scan((acc, curr) => acc + curr));
+                => result is: 2, 7, 16
+            => transformation operator
+                -> takes in an input stream, subscribes
+                -> creates an output stream
+            => When an item is emitted:
+                -> item is accumulated as specified by a provided function
+                -> intermediate result is emitted to the output stream
+            => Good when adding a new item 
+                we have our stream containing the products and a new Action stream that is called when adding a new item
+                merge(products$, insertAction$)
+                    .pipe((acc: Product[], value: Product) => [...acc, value])
+    
+    => Caching Observables:
+        -> Retain retrieved data locally
+        -> data is retrieved faster
+        -> reused previously retrieve data
+        -> stored in memory or external.
+        * Patterns for Data Caching:
+            1. Clasing Caching Pattern: save the data in a variable in the service
+                => this.get<Product[]>(url).pipe(
+                    tap(data => this.products = data),
+                    catchError(this.handleError)
+                    )
+             => Not very delcarative
+            2. Declarative Caching Pattern: use shareReplay
+                => products$ = this.http.get<>()
+                    .pipe(
+                        shareReplay(1),
+                        catchError(this.handleError)
+                    )
+                -> shareReplay
+                    - Shares the stream with other subscribers
+                    - Replays the defined number of emissions on subscription
+                    - Used for:
+                        -> caching data in the application
+                        Given:
+                         Observable1 with shareReplay of 1.
+                         Subsciber1
+                        When:
+                            Observable1 emits '0'
+                            Subscriber1 receives '0'
+                            shareReplay buffer saves '0'
+                            --
+                            Observable1 emits '1'
+                            Subscriber1 receives '1'
+                            shareReplay overrides the '0' to '1' (it can only hold 1 element since shareReplay is 1.)
+                            --
+                            Subscriber2 subscribers to Observable1
+                            => Subscriber2 retrieves the elements in the shareReplay => receives '1'.
+                    -> shareReplay is a multicast operator
+                    -> Returns a subject that shares a single subscription to the underlying source
+                    -> Takes in an optional buffer size, which is the number of items cached and replayed.
+                    -> On a subscribe, it replays a specified number of emissions
+                    -> The items stays cache forever even after there are no more subscribers
+                => We should clear the cache at some point for the data not to become stale
+                    * Caching is not always a `valable` solution 
+                    => Evaluate:
+                        - Fluidity of data
+                        - User's behavior
+                    => Consider:
+                        - Invalidating the cache on a time interval
+                        - Allowing the user to control when data is refreshed
+                        - Always getting fresh data on upate operations
+
+    => Higher-order Mapping operators:
+        An observable that emits an observable is called a higher-order observable
+            => of(3, 7)
+                .pipe(id => this.http.get<X>(`${url}/${id}`)).subscribe();
+            3, 7 => Outer Observable
+            this.http.get => Inner Observable
+            ==> There's a problem with this code we're not subscribing to the inner observable
+                of(3, 7)
+                .pipe(id => this.http.get<X>(`${url}/${id}`))
+                .subscribe(o => o.subscribe());
+                --> can be written in a nicer way
+                    => nested subscription is not best practice
+                    ===> Solution: Higher-order Mapping orders
+        => Higher-order RxJS Mapping operators
+            -> Family of operators: xxxMap() [always finish with 'Map']
+            -> Map each value:
+                - From  a source (outer) Observable
+                - To a new (inner) Observable
+            -> Automatically subscribe/unsubscribe from inner Observable
+            -> emit the resulting values to the output Observable (different for each operator)
+        * concatMap
+            - Higher-order mapping + concatenation
+            - Transforms each emitted item to a new (inner) Observable as defined by a function
+                => concatMap(i => of(i))
+            - it waits for each inner Observable to complete before processing the next one
+            - Concatenates their results in sequence
+            ex.
+                of('A1', 'A2')
+                    .pipe(
+                        concatMap(id => this.http.get<X>(`${this.url}/${id}`))
+                    ).subscribe(console.log);
+                => 'A2' is not processed until the previous innerObservable completes.
+                => concatMap waits for the response of each inner observable.
+            -- concatMap is a transformation operator
+                - Takes in an input stream, subscribes
+                - Creates an output stream
+            -- When an item is emitted, it's queued
+                - Item is mapped to an inner Observable as specified by a provided function that has to return an Observable or an object that angular knows how to create an observable from (array for example)
+                - Subscribes to inner Observable
+                - waits
+                - Inner Observable emissions are concatenated to the output stream.
+                - When the inner Observable complets, processes the next item
+                - Completes when the outer observable completes
+            -- Use concat Map
+                - To wait for the prior Observable to complete before starting the next one.
+                - To process items in sequence
+                - Example:
+                    -> from set of ids, get data in sequence
+                    -> from a set of ids, update data in sequence 
+        * mergeMap
+            - Higher-order mapping + merging
+            - Transforms each emitted item to a new (inner) Observable as defined by a function
+                => mergeMap(i => of(i))
+            - it executes inner Observable in parallel
+            - And merges their results.
+            ex.
+                of('A1', 'A2')
+                    .pipe(
+                        mergeMap(id => this.http.get<X>(`${this.url}/${id}`))
+                    ).subscribe(console.log)
+                => 'A1' and 'A2' are processed in parallel
+                => Merged in the output stream in no particular order
+            -- Transformation operator
+                - Takes in an input stream, subscribes
+                - Creates an output stream
+            -- When each item is emitted
+                - Item is mapped to an inner Observable as speciied by a provided function that has to return an Observable or an object that angular knows how to create an observable from (array for example)
+                - Subscribes to inner Observable
+                - Inner Observable emissions are merged to the output stream 
+            -- Use mergeMap
+                - To process in parallel
+                - When order doesn't matter
+                - Examples:
+                    -> from a set of ids, retrieve data (order doesn't matter)
+            => Obviously faster than concatMap
+        * switchMap
+            - Higher-order mapping + switching
+            - Transforms each emitted item to a new (inner) Observable as defined by a function
+                switchMap(i => of(i))
+            -  Stops the prior inner Observable and switches to the new inner Observable
+            ex.
+                of('A1', 'A2')
+                    .pipe(
+                        switchMap(id => this.http.get<X>(`${this.url}/${id}`))
+                    ).subscribe(console.log)
+                => 'A1' emitted
+                    => subscribes and exeuctes the inner observable
+                => 'A2' emitted
+                    => Stops/ Unsubscribes the 'A1' observable before it had a chance to emit
+                    => and subscribed and executes the inner observable with 'A2'
+                => merge result in output stream
+            -- Transformation operator
+                - Takes n input stream, subscribes
+                - Creates an output stream
+            -- When each item is emitted
+                - Item is mapped to an inner Observable as specified by a provided function that has to return an Observable or an object that angular knows how to create an observable from (array for example)
+                - Unsubscribes from prior inner Observable and Subscribes to new/current inner Observable 
+                - Inner Observable emissions are merged to the output stream
+            -- Use switchMap
+                - To stop prior Observable before switching to the next one
+                - Examples:
+                    -> Type ahead or auto completion, restart the search as the user types
+                    -> User selections from a list => and want to return last selection
+
+    => Related Data Streams:
+        2 methods:
+            1. Get it All
+                => use combineLatest(product$, productSupplier$) => we get all the data from the beginning
+                -- Declarative pattern to retrieve all data from related data set
+                -- combine streams
+                -- Display instantly
+                -- gets all data => may be unecessary if the user will not need them all
+
+
+            2. Just in time:
+                => use mergeMap() => when product$ emits a value we get the supplier id of this product.
+                    => this.selectedProduct
+                        .pipe(switchMap(product => 
+                            from (product.supplierIds)
+                                .pipe(
+                                    mergeMap(supplierId => this.http.get<>),
+
+                                    toArray()
+                                ))),
+                toArray() => operator, collects all the emitted value in an array and emits only when the input stream completes.
+                    so we get an observable of list of items (1 item) instead of having an Observable of item that emits for each item.
+
+
+                    in our case this.selectedProduct$ never completes because it listens to user action
+                        => this is why we created an inner observable from() => that completes when emitting all supplierIds
+                            because toArray() needs an Observable that completes, and toArray() is in the scope of from not outside of it,
+                -- More complex code
+                -- Higher order mapping operators
+                -- Display delay since we're retrieve for each selected product
+                -- only retrieve required data
+
+    => Ancillary streams
+        => combine all streams of a certain component:
+                viewModel$ = combineLatest([
+                this.product$,
+                this.productSuppliers$,
+                this.pageTitle$
+                ]).pipe(
+                filter(([product]) => Boolean(product)),
+                map(([product, productSupplier, pageTitle]) => ({ product, productSupplier, pageTitle }))
+                );
+            => that way only one subscription will be done on model side.
+
+    => A few more terms:
+        - Cold Observable
+            => doesn't emit until subscribed to
+            => unicast
+            => this.http.get<>().subscribe => to emit
+
+        - Hot Observable
+            => emit without subscribers
+            => multicast
+            => Subject / BehaviorSubject
+
+
+Angular Component Communications
+    -> In order for 2 components to communicate 
+        - use a Service inbetween as an intermediary
+            Component <-> Service <-> Component
+                - Retain state
+                - Share data
+                - Send notification
+        - use a router
+            Component <-> Router <-> Component
+                - Pass require data
+                - Pas optional data
+    -> Communicating with a Template:
+        -> binding:
+            - Interpolation:
+                * Component:
+                    pageTitle: string = 'Product List';
+                * Template
+                    <div> {{ pageTitle }} </div>
+            - Property binding:
+                * Component:
+                    imageWidth: number = 50;
+                * Template:
+                    <img [style.width.px]='imageWidth'>
+            - Event binding:
+                * Component:
+                    - toggleImage(): void {
+                        this.showImage = !this.showImage;
+                    }
+                * Template:
+                    - <button (click)='toggleImage()'>
+            - Two-way binding:
+                * Component:
+                    - listFilter: string;
+                * Template:
+                    <input type='text' [(ngModel)]='listFilter'>
+        -> Structural directives:
+            - ngIf:
+                * Component:
+                    showImage: boolean = false;
+                * Template:
+                    <img *ngIf='showImage' [src]='product.imageUrl'>
+            - ngFor:
+                * Component:
+                    products: Product[]
+                * Template
+                    <tr *ngFor='let product of products'>
+
+    -> ViewChild and ViewChildren decorators
+        - Getting a reference to a specific element in the html
+            let divElement = document.getElementById('divElementId')
+        -> In angular:
+            @ViewChild('divElement') divElementRef
+            ** ViewChild and ViewChildren use:
+                - the selector for the decorator can be an angular directive (Class)
+                    @ViewChild(NgModel) filterInput: NgModel;
+                        => <input type='text' [(ngModel)]='listFilter/>
+                - the selector for the decorator can be a Custom Directive/ child component: (Class)
+                    @ViewChild(StarComponent) star: StarComponent;
+                        => <pm-star [rating]='product.starRating'></pm-star>
+                - the selector for the decorator can be a reference variable (string)
+                    @ViewChild('divElementVar') divElementRef: ElementRef;
+                        => <div #divElementVar> {{ pageTiel }} </div>
+            => Access the nativeElement and call html functions
+            When Using @ViewChild and calling nativeElement
+                => Using native Element -> directly accessing the DOM
+                => Tightly coupled to the browser
+                => May not be able to use server-side rendering or web workers
+                ==> solution:
+                    if (this.filterElementRef.nativeElement) {
+                        this.filterElementRef.nativeElement.focus();
+                    }
+                => Can pose a security threat, especially if accessing innerHtml.
+            ViewChild => reeturn a ElementRef
+            ViewChildren 
+                => returns a QueryList<ElementRef>
+                => tracks changes in the DOM:
+                    this.divElementRefs.changes.subscribe(() => {}) 
+            @ViewChildren('filterElement, nameElement') list of element refs.
+
+    -> getting called when input modified:
+        ** Two-way binding, the Long Way.
+            => [(ngModel)] => this is actually a two way binding for property binding and event binding.
+            it can be decomposed to:
+                - [(ngModel)] = 'listFilter
+                    => [ngModel]='listFilter'
+                        (ngModelChange)='listFilter=$event
+                    => which can be modified to call a function instead:
+                        [ngModel]='listFilter'
+                            (ngModelChange)='onFilterChange($event)'
+                                => this means that when this input change the listFilter variable is not modified and we have to handle it ourselves.
+            => decomposing the two-way binding is not a best practice, the syntax is not common
+            => devs are used to the two-way binding more than its decomposition
+        ** getters and setters
+            get listFilter(): string {
+                return this._listFilter;
+            }
+            set listFilter(value: string {
+                this._listFilter = value;
+                onFilterChange(_listFilter);
+            }
+            => getters and setters are called every time two-way binding changes
+        ** valueChanges
+            Template-Driven                                             Reactive
+                - Angular creates the form data structures                  - We create the form data structures
+                - Based on info in the template                             - Defined in the component class
+                - Access reference with ViewChild                           - No need for ViewChild
+
+            => if the input is not in a form we can still use the @ViewChild.
+
+                    => in both cases the code will look like:
+                        this.filterInput.valueChanges.subscribe(() => this.performFilter(this.listFilter))
+            => what if we have an ngIf on the input? 
+                => we will get an exception with @ViewChild (the elementRef, NgModel might not be available)
+                => solution is use getters and setters
+
+
+    -> Parent to Child Communication:
+        - a Parent and Child relationship is done when the parent template contain the child component
+            <pm-star>
+        => parent component might want to put a configuration, a default value or item data,
+            request information, perform an action, 
+        * Push data to child
+            => @Input in the child component
+                => pass data in child component
+        * Parent want to call a function from child component
+            => Template reference variable
+            => ViewChild
+        => Watching for changes to an Input Property:
+            1. Getter and Setter
+                private _hitCount: number;
+                get hitCount(): number {
+                    return this._hitCount
+                }
+                @Input()
+                set hitCount(value: number) {
+                    this._hitCount = value;
+                }
+            2. onChanges Lifecycle hook => only available for child since ngOnChanges work with @Input decorated attributes
+            @Input() hitCount: number;
+
+            ngOnChanges(changes: SimpleChanges) {
+
+            }
+        * Parent want to call a function from child component or access a certain information:
+            ** Template reference variable
+                Parent template:
+                    <pm-criteria #filterCriteria [displayDetail]='includeDetail'> </pm-criteria>
+            {{filterCriteria.listFilter}}
+                Parent component:
+                    @ViewChild(CriteriaComponent)
+                    filterComponent: CriteriaComponent;
+                        => no need for template reference.
+
+                    @ViewChild('filterCriteria')
+                    filterComponent: CriteriaComponent
+                        => with template reference
+        - Defining child components:
+            - Specific task
+            - Complex
+            - Reusable
+        - Parent to child, pass configuration, default value, item data
+            => in most case use @Input
+                => with onChanges if the child want to monitor the changes on this @Input
+            => use getter and setters and decorate the setter with @Input
+        - Parent can reference the child component directly, to request information or to perform an action:
+            => Template reference variable
+                - put the template reference variable (#Criteria) in  the parent's template
+                    => @ViewChild('Criteria') CriteriaComponent: criteriaComponent;
+                - use CriteriaComponent as ViewChild type
+                    => @ViewChild(CriteriaComponent) criteriaComponent: CriteriaComponent;
+
+    -> Child to Parent Communication:
+        child notify the parent of a change:
+            - Event Notification, value changes or button clicked
+            - Provide information
+        The most common technique for the child to communicate to a parent:
+            - @Output decorator, to emit event
+            - Template Reference Variable @ViewChild => and then the parent has a reference on the child,  so it can access information
+
+        * Output: Notify a parent:
+            -> emit event
+            Child component:
+                @Output valueChange: EventEmitter<string;
+                this.valueChange.emit(value);
+            Parent template:
+                <pm-criteria [displayDetail]='includeDetail' => input
+                             (valueChange)='onValueChange($event)' => output
+                             > <pm-criteria>
+            Parent component
+                onValueChange(value: string): void {
+                    this.performFilter(value);
+                }
+    
+    -> Communication through service
+        => all the above examples could have been handled with an intermediary service.
+        => Service can be used to Managing state
+        => it can be used for property bag service
+            - Communication with itself
+            - Communication with others
+        => Service scope and lifetime.
+        To Manage state we can use many techniques :
+            1- Property bag
+                we create a service that exposes state that component can access
+                    @Injectable()
+                    export class ParamService {
+                        showImage: boolean;
+                        filterBy: string;
+                    }
+            2- Basic State Management
+                we create a service that stores, retrieve and insert application state:
+                    @Injectable()
+                    export class ProductService {
+                        private products: IProduct[];
+
+                        getProducts() {}
+                        getProduct(id: number) {}
+                        createProduct(product: IProduct) {}
+                    }
+            3-  State Management with notifications
+                we create a service that has subject and behavior subject
+                    @Injectable()
+                    export class ProductService {
+                        private selectedProduct: IProduct;
+
+                        private selectedProductSource = new BehaviorSubject<IProduct>();
+                        selectedProductChange$ = this.selectedProductSource.asObservable();
+                    }
+            4- ngrx/Redux
+                -> based on 4 pillars:
+                    a. State: Immutable
+                    b. Actions: state changes
+                    c. Reducers: state + action = newState;
+                    d. Store:
+                        Observable of state
+                        Observer of actions
+        ** Property bag: Component communicates to itself or to other components.
+            -> keep track of my changes
+            -> when someone navigates away from the component
+                the component dies and all the state that was in it is destroyed and re-created when the component is re-displayed.
+                => create a service to hold the state
+            => Property bag example.
+            => Stash away data / information for components to access later.
+        ** State Management Service
+            -> @Injectable()
+                export class ProductService {
+                    private products: IProduct[];
+
+                    getProducts() {}
+                    getProduct(id: number) {}
+                    createPrduct(product: IProduct) {}
+                    deleteProduct(id: number) {}
+                    updateProduct(product: IProduct) {}
+                }
+            -> from a simple data service to a data state management service
+                => by caching the product instead of querying each time
+                => and manage that cache / state. (when deleting for example, call delete to backend and delete from the current cache we have)
+            -> holds, manage and share the data.
+            -> when querying data, we cache the data queried in the service.
+            -> reduce the time we contact the backend service.
+            -> if we have two components 
+                productList
+                productDetail 
+                and productShell that is the parent of both
+                    productShell.html
+                        <product-list></product-list>
+                        <product-detail></product-detail>
+                -> when selecting a product in the productList component we want to show it in the product detail how?
+                  Solution1: service that holds the state and Angular change detection with binding
+                    -> a Service that keeps the state:
+                        in this service:
+                        currentProduct: IProduct | null;
+                    
+                    in productListComponent:
+                        <button (click)='onSelected'>
+
+                        onSelected(product) {
+                            this.productService.currentService = product;
+                        }
+                    in productDetailComponent:
+
+                        get product(): IProduct | null {
+                            return this.productService.currentService
+                        }
+                        => since product is bound in the template of productDetailComponent
+                        => when currentService is modified we will get called on this getProduct
+                        => how does it work ?
+                            - Angular change detection, when angular sees a change it updates the binding
+                                => {{ product.productName }}
+                                ==> when productName is modified the value is directly modified in the template and the UI.
+                            - but how does it work if the modified value is in a service?
+                                => get product() {
+                                    this.productService.currentProduct;
+                                }
+                                => Angular watches for change of product() (with get product()) 
+                                    even if the underlying property is in a service.
+                        ====> Works only if property is bound.
+                  Solution2: service that holds the state and service notification
+                    => State Management Service with Notification
+         ** State Management Service with Notification
+            - It is discouraged to use EventEmitter except for Output decorator.
+            - Use Subject/BehaviorSubject for notifications.
+            - Subject
+                => send notification
+                => multicast an event to multiple subscribers.
+                => Subject is an Observer and Observable.
+                    this.mySubject.next(item);
+                        -> sent to all subscribers.
+                => reminder that a BehaviorSubject sends the last emitted value to the new subscribers
+                    => which can be better if we want to maintain state of the selectedProduct even when the componend is destroyed and reinitialized.
+            !!!!! Remember to always unsubscribe on ngOnDestroy
+            sub: Subscription;
+
+            ngOnInit() {
+                this.sub = this.productService.productChange$.subscribe(...);
+            }
+
+            ngOnDestroy() {
+                this.sub.unsubscribe();
+            }
+        Service:
+            Registering a service:
+                => where we register service defines the register scope and lifetime.
+                - we can register a service to a component:
+                    @Component({
+                        templateUrl
+                        styleUrl
+                        providers: [ ProductService ]
+                    })
+                    => the service is accessible to that component and all its children (components defined in the template or components that we route to)
+                    => the service instance is destroyed when the component is destroyed which means when we move away from this component.
+                    => if we register the same service in 2 different components
+                        => these are 2 different instances
+                        => not always a bad idea if we need 2 instance of property bag
+                - we can register a service to a module:
+                    @NgModule({
+                        providers:[
+                            ProductService
+                        ]
+                    })
+                    => we don't have issues for scope and lifetime.
+                    => if we register it in AppModule => available for all components
+                    => if we're using lazy loading and we define it to a sub/module
+                        => the service is only available to the component under this scope
+
+            Why to create a Service:
+                - Provide functionaility accross components:
+                - ex.:
+                    - Logging
+                    - Calculations
+                    - Data access
+                    - Data sharing
+                - Register it with the angular injector (determines also the scope)
+                - Inject into any component that needs it
+                - => is a singleton 
+
+    -> Communication using the router
+        - routing: provide a mechanism to navigate from one page to another
+        - Menu or toolbar for example
+            <a [routerLink]="['/products']">Product List</a>
+            => search for <routerOutlet> => and display the component inside this routerOutlet
+        - we use route parameters:
+            => Route parameters:
+                - required
+                    => required parameter to be passed (example productDetail)
+                    => required parameters are written:
+                        {path: '/product:id', component: productDetailComponent }
+                        and in the html:
+                            <a [routerLink]="['/products', product.id]>..</a>
+                        or in the code:
+                            this.router.navigate(['/product', this.productId]);
+                        and then the ProductDetailComponent can read the parameter:
+                            this.route.snapshot.paramMap.get('id')
+                - optional
+                    => we don't specify them in the router configuration:
+                        { path: 'products', component: ProductListComponent }
+                    but in the html:
+                        <a [routerLink]="['/products', {name:cart, code:g}"]>..</a>
+                    or in the code
+                        this.route.navigate(['/products', {name:'cart', code: 'g'}])
+                    => defined as a key value pair
+                    and then the component can read the parameter:
+                        this.route.snapshot.paramMap.get('name');
+                - query
+                    => like optional parameters not specified like route Configuration:
+                        { path: 'products', component: ProductListComponent }
+                    but in the html:
+                        <a [routerLink]="['/products']" [queryParams]="{name: cart, code: g}"> ...</a>
+                    or in the code
+                        this.route.navigate(['/products'], {queryParams: {name: 'cart', code: 'g'}});
+                    and then the component can read the parameter:
+                        this.route.snapshot.queryParamMap.get('name')
+                    => generate different url than the optional
+                    => query parameters can be sent back to the the original callee
+        => do not send large data as route parameters
+        => route parameteers appear in the url
+        => Which kind to route parameter to use:
+            - required:
+                => when the data must be provided to the routed component
+            - optional:
+                => when the data is optionally provided to the routed component
+            - query:
+                => when the data is optionally provided to the routed component
+                => when a query style URL is desired
+                => when the data should be retained accross routes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+READ AND REVIEW THIS CHEAT SHEET AGAIN AND MAYBE ARRANGE, GROUP ALL THE COMMON PARTS TOGETHER, STRUCTURE IT IN A BETTER WAY
+
+What is javascript spread operator!!!
 
 
 Pluralsight courses:
-    Unit testing in Angular
-    Angular Routing
+    Advanced JavaScript
     Angular Component Communication
+    Angular Routing
     Angular Fundamentals
+    Angular NgRx: Getting Started
 
 www.getbootstrap.com => to be consistent among browsers
 http://putsreq.com => to build quick webservices.
